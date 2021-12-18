@@ -1,8 +1,8 @@
 configfile : 'config.json'
 data = '/data/' # wherever your data is stored
 
-clones = data + 'mapping.tsv'
-snvs = data + 'sectionE.phased_snps_counts.pos.gz'
+mapping = data + 'mapping.tsv'
+snvs = data + 'sectionE.phased_snps_counts.pos.'
 abcs = config['abcs']
 
 m = 4 # largest value observed in distilled matrix
@@ -10,6 +10,7 @@ k = 63 # largest number of 1s observed in any row
 ps = ['a{}.b{}'.format(a,b)
       for b in range(1,m+1)
       for a in range(1,b+1)]
+clones = [63, 156, 172, 199, 241] # non-root clones from CN tree
 
 time = '/usr/bin/time'
 sasc = 'sasc/sasc'
@@ -17,6 +18,7 @@ threads = 16
 
 patt = 'k{k}-a{a}-b{b}-sasc' # parameterization of sasc
 ptwc = 'k{k,[0-9]+}-a{a,[0-9]+.[0-9]+}-b{b,[0-9]+.[0-9]+}-sasc'
+sasf = 'k1-a0.1-b0.0001-sasc' # a particular parameterization
 
 abcs = ['a{}.b{}.c{}'.format(a,b,c) for a,b,c in abcs]
 
@@ -24,10 +26,12 @@ abcs = ['a{}.b{}.c{}'.format(a,b,c) for a,b,c in abcs]
 
 rule master :
     input :
-        expand(data + 'sectionE.phased_snps_counts.pos.{p}.mat.stats', p = ps),
+        expand(snvs + '{p}.mat.stats', p = ps),
         data + 'stats.csv',
-        expand(data + 'sectionE.phased_snps_counts.pos.{abc}.sasc.k1-a0.1-b0.0001-sasc.out',
-               abc = abcs)
+        expand(snvs + '{abc}.sasc.' + sasf + '.out',
+               abc = abcs),
+        expand(snvs + '{abc}.clone{clone}.sasc.' + sasf + '.out',
+               abc = abcs, clone = clones)
 
 #----------------------------------------------------------------------
 
@@ -65,9 +69,6 @@ rule sasc :
   rm {output}.mat ''')
 
 
-# prepare the data
-#----------------------------------------------------------------------
-
 # convert to sasc format
 rule to_sasc :
     input : '{path}.mat'
@@ -86,6 +87,27 @@ rule to_sasc :
     > {output.snvs} 2>> {log}
   python3 scripts/to-sasc.py {input} \
     > {output.mat} 2>> {log} '''
+
+
+# prepare the data
+#----------------------------------------------------------------------
+
+# split cells (columns) of a matrix into clones
+rule split :
+    input :
+        mat = '{path}.mat',
+        mapp = mapping
+
+    output :
+        expand('{{path}}.clone{clone}.mat', clone = clones)
+
+    log : '{path}.split.log'
+
+    shell : '''
+
+  python3 scripts/split.py {input.mat} {input.mapp}
+    > {log} 2>&1
+  touch {output} '''
 
 
 # keep rows above a certain threshold of number of ones
@@ -116,9 +138,9 @@ rule ternarize :
 rule distill :
     input :
         snv = '{path}.gz',
-        clone = clones,
+        mapp = mapping,
         sort_check = '{path}.sort_check', # sanity checks
-        id_check = clones + '.id_check'
+        id_check = mapping + '.id_check'
 
     params :
         cells = 'None',
@@ -131,7 +153,7 @@ rule distill :
 
   zcat {input.snv} \
     | python3 scripts/distill.py \
-         -f {input.clone} -c {params.cells} -m {params.mutations} \
+         -f {input.mapp} -c {params.cells} -m {params.mutations} \
     | gzip > {output} 2> {log} '''
 
 

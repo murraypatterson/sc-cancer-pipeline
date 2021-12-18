@@ -5,7 +5,7 @@ some useful functions used by several scripts
 '''
 
 # build dictionary from cell to clone mapping (filtering certain ones)
-def cell_to_clone(lines, to_filter) :
+def cell_to_clone(lines, to_filter = []) :
 
     clone = {}
     for line in lines :
