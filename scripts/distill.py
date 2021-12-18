@@ -15,23 +15,7 @@ part of the cluster name.
 
 import sys
 import argparse
-
-# build dictionary from cell to clone mapping (filtering certain ones)
-def cell_to_clone(lines, to_filter) :
-
-    clone = {}
-    for line in lines :
-
-        if line.startswith('#') :
-            continue
-
-        cell, cluster, clone_name = line.split()
-        if clone_name in to_filter :
-            continue
-
-        clone[cell] = cluster
-
-    return clone
+from functions import cell_to_clone
 
 # True if none of the cells are of clone given_clones else False
 def not_of_clones(given_clones, cells, clone) :

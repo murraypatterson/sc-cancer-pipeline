@@ -27,16 +27,6 @@ def apply_ab(row, a, b) :
     return ts
 
 
-# true if row has no ones, o.w., false
-def no_ones(row) :
-
-    for c in row :
-        if c == '1' :
-            return False
-
-    return True
-
-
 # Main
 #----------------------------------------------------------------------
 
